@@ -1,4 +1,6 @@
 from flask import Flask, render_template_string, request, session, redirect, url_for
+import json
+import openai
 
 app = Flask(__name__)
 app.secret_key = "replace_with_a_strong_random_secret"
@@ -117,6 +119,14 @@ def run_action():
         return redirect(url_for("hr_chat"))
     return redirect(url_for("index"))
 
+def load_credentials(file_path='keys.json'):
+    """
+    Reads a JSON file containing both OpenAI and Twitter API keys.
+    """
+    with open(file_path, 'r') as f:
+        credentials = json.load(f)
+    return credentials
+
 # ─── Accounting Chat ────────────────────────────────────────────────────────────
 def accounting_logic(user_text: str) -> str:
     # TODO: replace with your accounting-specific logic
@@ -135,8 +145,25 @@ def accounting_chat():
 
 # ─── Legal Chat ─────────────────────────────────────────────────────────────────
 def legal_logic(user_text: str) -> str:
-    # TODO: replace with your legal-specific logic
-    return f"🤖 (Legal) You asked: “{user_text}”"
+
+    # Extract the OpenAI API key
+    credentials = load_credentials("/Users/deeptaanshukumar/keys_isp.json")
+    chatgpt_api_key = credentials["openai_api_key"]
+
+    """
+    This prompt will allow users to use public internet to answer their legal-related questions
+    """
+    openai.api_key = chatgpt_api_key
+    response = openai.ChatCompletion.create(
+        model="gpt-4o-search-preview", # need to use this model since 4.5-preview api doesn't allow for searching web for results
+        messages=[
+            {"role": "user", "content": "Assume you are the company's Chief Legal Officer, and answer the following question by one of your employees: " + user_text}
+        ],
+    )
+    # Extracting the answer text from the response
+    answer = response.choices[0].message['content'].strip()
+
+    return f"🤖 (Legal): “{answer}”"
 
 @app.route("/legal", methods=["GET","POST"])
 def legal_chat():
