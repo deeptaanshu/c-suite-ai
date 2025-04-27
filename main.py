@@ -2,18 +2,18 @@ from flask import Flask, render_template_string, request
 
 app = Flask(__name__)
 
-# HTML template with 5 buttons
+# HTML template with 5 arbitrarily-labeled buttons
 TEMPLATE = """
 <!doctype html>
 <html>
   <head>
-    <title>5-Button Python UI</title>
+    <title>C-Suite AI</title>
   </head>
   <body>
-    <h1>Choose an action</h1>
-    {% for i in range(1,6) %}
-      <form action="/run/{{i}}" method="post" style="display:inline-block; margin:10px;">
-        <button type="submit">Action {{i}}</button>
+    <h1>Choose a C-Suite AI Role</h1>
+    {% for key, label in buttons.items() %}
+      <form action="/run" method="post" style="display:inline-block; margin:8px;">
+        <button type="submit" name="action" value="{{ key }}">{{ label }}</button>
       </form>
     {% endfor %}
     {% if result %}
@@ -23,33 +23,53 @@ TEMPLATE = """
 </html>
 """
 
-# Map each action to its handler
-def action_one():   return "Executed action one"
-def action_two():   return "Executed action two"
-def action_three(): return "Executed action three"
-def action_four():  return "Executed action four"
-def action_five():  return "Executed action five"
+# Define your handlers
+def accounting_agent():
+    return "Accounting AI Agent"
 
+def legal_agent():
+    return "Legal AI Agent"
+
+def marketing_agent():
+    return "Marketing AI Agent"
+
+def bizdev_agent():
+    return "Sales / Business Development AI Agent"
+
+def hr_agent():
+    return "HR / Sourcing AI Agent"
+
+# Map action-keys to handler functions
 ACTION_MAP = {
-    '1': action_one,
-    '2': action_two,
-    '3': action_three,
-    '4': action_four,
-    '5': action_five,
+    "accounting":     accounting_agent,
+    "legal":       legal_agent,
+    "marketing":      marketing_agent,
+    "bizdev":      bizdev_agent,
+    "hr":    hr_agent
 }
 
-@app.route('/', methods=['GET'])
+# The labels you actually want on the buttons
+BUTTONS = {
+    "accounting":  "Accounting AI Agent",
+    "legal":    "Legal AI Agent",
+    "marketing":   "Marketing AI Agent",
+    "bizdev":   "Sales / Business Development AI Agent",
+    "hr": "HR / Sourcing AI Agent"
+}
+
+@app.route("/", methods=["GET"])
 def index():
-    return render_template_string(TEMPLATE, result=None)
+    return render_template_string(TEMPLATE, buttons=BUTTONS, result=None)
 
-@app.route('/run/<action_id>', methods=['POST'])
-def run_action(action_id):
-    func = ACTION_MAP.get(action_id)
-    if not func:
-        result = "Unknown action"
+@app.route("/run", methods=["POST"])
+def run_action():
+    action_key = request.form.get("action")
+    handler = ACTION_MAP.get(action_key)
+    if handler:
+        result = handler()
     else:
-        result = func()
-    return render_template_string(TEMPLATE, result=result)
+        result = f"⚠️ Unknown action: {action_key}"
+    return render_template_string(TEMPLATE, buttons=BUTTONS, result=result)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)
