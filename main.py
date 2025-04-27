@@ -1,6 +1,7 @@
 from flask import Flask, render_template_string, request, session, redirect, url_for
 import json
 import openai
+import tweepy
 
 app = Flask(__name__)
 app.secret_key = "replace_with_a_strong_random_secret"
@@ -11,7 +12,7 @@ INDEX_TEMPLATE = """
 <html lang="en">
   <head>
     <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>AI Agent Suite</title>
+    <title>Deep Lithium's C-Suite AI Agent</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.4.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
       body { background-color: #f5f5f5; }
@@ -103,19 +104,19 @@ def run_action():
     choice = request.form.get("action")
     # initialize session history and redirect to the proper chat
     if choice == "accounting":
-        session["history_accounting"] = [{"sender":"agent","message":"Hello! I’m your Accounting AI Agent. What can I help you with?"}]
+        session["history_accounting"] = [{"sender":"agent","message":"Hello! I’m Deep Lithium's Accounting AI Agent. What can I help you with?"}]
         return redirect(url_for("accounting_chat"))
     if choice == "legal":
-        session["history_legal"] = [{"sender":"agent","message":"Hello! I’m your Legal AI Agent. How may I assist?"}]
+        session["history_legal"] = [{"sender":"agent","message":"Hello! I’m Deep Lithium's Legal AI Agent. Keeping in mind that I can search the public internet during our interactions, how may I assist you?"}]
         return redirect(url_for("legal_chat"))
     if choice == "marketing":
-        session["history_marketing"] = [{"sender":"agent","message":"Hi there! I’m your Marketing AI Agent. What are we promoting today?"}]
+        session["history_marketing"] = [{"sender":"agent","message":"Hi there! I’m Deep Lithium's Marketing AI Agent. What would you like to post on Deep Lithium's Twitter post today?"}]
         return redirect(url_for("marketing_chat"))
     if choice == "bizdev":
-        session["history_bizdev"] = [{"sender":"agent","message":"Greetings! I’m your Sales/Business Dev AI Agent. Let’s grow your pipeline."}]
+        session["history_bizdev"] = [{"sender":"agent","message":"Greetings! I’m Deep Lithium's Sales/Business Dev AI Agent. Let’s grow your pipeline."}]
         return redirect(url_for("bizdev_chat"))
     if choice == "hr":
-        session["history_hr"] = [{"sender":"agent","message":"Hello! I’m your HR/Sourcing AI Agent. Need help finding talent?"}]
+        session["history_hr"] = [{"sender":"agent","message":"Hello! I’m Deep Lithium's HR/Sourcing AI Agent. Need help finding talent?"}]
         return redirect(url_for("hr_chat"))
     return redirect(url_for("index"))
 
@@ -151,7 +152,7 @@ def legal_logic(user_text: str) -> str:
     chatgpt_api_key = credentials["openai_api_key"]
 
     """
-    This prompt will allow users to use public internet to answer their legal-related questions
+    This prompt will allow users to use public internet to answer their Legal-related questions
     """
     openai.api_key = chatgpt_api_key
     response = openai.ChatCompletion.create(
@@ -178,8 +179,37 @@ def legal_chat():
 
 # ─── Marketing Chat ─────────────────────────────────────────────────────────────
 def marketing_logic(user_text: str) -> str:
-    # TODO: replace with your marketing-specific logic
-    return f"🤖 (Marketing) You asked: “{user_text}”"
+
+    # Extract the OpenAI and Twitter API keys
+    credentials = load_credentials("/Users/deeptaanshukumar/keys_isp.json")
+    chatgpt_api_key = credentials["openai_api_key"]
+
+    """
+    This prompt will take a users topic and make a Twitter post in approximately 250 characters.
+    """
+    openai.api_key = chatgpt_api_key
+    response = openai.ChatCompletion.create(
+        model="gpt-4.1",
+        messages=[
+            {"role": "user", "content": "Assume the role of a Head of Social Media at Deep Lithium and use the following prompt to make a post for Twitter with a length of exactly 250 characters: " + user_text}
+        ],
+        temperature=0.7  # Adjust the creativity of the answer if desired
+    )
+    # Extracting the answer text from the response
+    answer = response.choices[0].message['content'].strip()
+
+    tweet_text = answer
+    client = tweepy.Client(
+    consumer_key=credentials["twitter_api_key"],
+    consumer_secret=credentials["twitter_api_secret_key"],
+    access_token=credentials["twitter_access_token"],
+    access_token_secret=credentials["twitter_access_token_secret"],
+    bearer_token=credentials["bearer_token"])
+
+    # Post a tweet and return the API response
+    tweet_response = client.create_tweet(text=tweet_text)
+
+    return f"🤖 (Marketing) We posted the following tweet on https://x.com/deep_lithium: “{tweet_text}”"
 
 @app.route("/marketing", methods=["GET","POST"])
 def marketing_chat():
@@ -210,8 +240,24 @@ def bizdev_chat():
 
 # ─── HR Chat ───────────────────────────────────────────────────────────────────
 def hr_logic(user_text: str) -> str:
-    # TODO: replace with your HR/sourcing-specific logic
-    return f"🤖 (HR) You asked: “{user_text}”"
+   # Extract the OpenAI API key
+    credentials = load_credentials("/Users/deeptaanshukumar/keys_isp.json")
+    chatgpt_api_key = credentials["openai_api_key"]
+
+    """
+    This prompt will allow users to use public internet to answer their HR-related questions
+    """
+    openai.api_key = chatgpt_api_key
+    response = openai.ChatCompletion.create(
+        model="gpt-4o-search-preview", # need to use this model since 4.5-preview api doesn't allow for searching web for results
+        messages=[
+            {"role": "user", "content": "Assume you are the company's Chief HR Officer, and answer the following question by one of your employees: " + user_text}
+        ],
+    )
+    # Extracting the answer text from the response
+    answer = response.choices[0].message['content'].strip()
+
+    return f"🤖 (HR) You asked: “{answer}”"
 
 @app.route("/hr", methods=["GET","POST"])
 def hr_chat():
