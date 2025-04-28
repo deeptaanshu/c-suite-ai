@@ -175,3 +175,7 @@ cython_debug/
 
 # Mac files
 .idea/
+
+# Don't add local SQLite DB files
+accounting.db
+bizdev.db

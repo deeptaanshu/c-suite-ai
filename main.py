@@ -3,6 +3,10 @@ import json
 import openai
 import tweepy
 
+import sqlite3
+import openai
+import json
+
 app = Flask(__name__)
 app.secret_key = "replace_with_a_strong_random_secret"
 
@@ -23,7 +27,7 @@ INDEX_TEMPLATE = """
   </head>
   <body>
     <div class="container bg-white p-4 rounded shadow-sm">
-      <h1>AI Agent Suite</h1>
+      <h1>Deep Lithium's C-Suite AI Agent</h1>
       <form action="{{ url_for('run_action') }}" method="post">
         {% for key, label, color in buttons %}
         <button
@@ -130,8 +134,56 @@ def load_credentials(file_path='keys.json'):
 
 # ─── Accounting Chat ────────────────────────────────────────────────────────────
 def accounting_logic(user_text: str) -> str:
-    # TODO: replace with your accounting-specific logic
-    return f"🤖 (Accounting) You asked: “{user_text}”"
+    # Create new Accounting DB
+    db = LLMSQLite("accounting.db")
+    db.conn.execute("""
+    CREATE TABLE IF NOT EXISTS accounting (
+      id    INTEGER PRIMARY KEY AUTOINCREMENT,
+      line_item  TEXT,
+      cost TEXT
+    );
+    """)
+    db.conn.commit()
+
+    """
+    Prompts the OpenAI LLM to produce a single SQL statement that fulfills the Natural Language (NL) command,
+    given the current DB schema.
+    """
+    prompt = f"""
+    You are an expert SQL assistant. Based on the following SQLite schema:
+
+    {LLMSQLite._get_schema(db)}
+
+    Generate exactly one valid SQLite statement (no explanations) to fulfill this request:
+    “{user_text}”
+    """
+
+    # Get OpenAI credentials from keys.json
+    with open("/Users/deeptaanshukumar/keys_isp.json", 'r') as f:
+        credentials = json.load(f)
+    openai.api_key = credentials["openai_api_key"]
+
+    resp = openai.ChatCompletion.create(
+        model="gpt-4.1",
+        messages=[
+            {"role": "system", "content": "You generate SQL only."},
+            {"role": "user",   "content": prompt}
+        ],
+        temperature=0,
+        max_tokens=256
+    )
+    sql = resp.choices[0].message.content.strip().strip("```sql").strip("```")
+
+    # Query via NL
+    rows = db.execute_nl(sql)
+    if isinstance(rows, int):
+        output = "Data added successfully!"
+    else:
+        output = ""
+        for row in rows:
+            output = output + str(dict(row)) + "\n"
+
+    return f"🤖 (Accounting) Here is the data from the Accounting database: “{output}”"
 
 @app.route("/accounting", methods=["GET","POST"])
 def accounting_chat():
@@ -224,8 +276,57 @@ def marketing_chat():
 
 # ─── BizDev Chat ────────────────────────────────────────────────────────────────
 def bizdev_logic(user_text: str) -> str:
-    # TODO: replace with your sales/bizdev-specific logic
-    return f"🤖 (BizDev) You asked: “{user_text}”"
+    # Create new BizDev DB
+    db = LLMSQLite("bizdev.db")
+    db.conn.execute("""
+    CREATE TABLE IF NOT EXISTS bizdev (
+      id    INTEGER PRIMARY KEY AUTOINCREMENT,
+      name  TEXT,
+      email TEXT,
+      notes TEXT
+    );
+    """)
+    db.conn.commit()
+
+    """
+    Prompts the OpenAI LLM to produce a single SQL statement that fulfills the Natural Language (NL) command,
+    given the current DB schema.
+    """
+    prompt = f"""
+    You are an expert SQL assistant. Based on the following SQLite schema:
+
+    {LLMSQLite._get_schema(db)}
+
+    Generate exactly one valid SQLite statement (no explanations) to fulfill this request:
+    “{user_text}”
+    """
+
+    # Get OpenAI credentials from keys.json
+    with open("/Users/deeptaanshukumar/keys_isp.json", 'r') as f:
+        credentials = json.load(f)
+    openai.api_key = credentials["openai_api_key"]
+
+    resp = openai.ChatCompletion.create(
+        model="gpt-4.1",
+        messages=[
+            {"role": "system", "content": "You generate SQL only."},
+            {"role": "user",   "content": prompt}
+        ],
+        temperature=0,
+        max_tokens=256
+    )
+    sql = resp.choices[0].message.content.strip().strip("```sql").strip("```")
+
+    # 3) Query via NL
+    rows = db.execute_nl(sql)
+    if isinstance(rows, int):
+        output = "Data added successfully!"
+    else:
+        output = ""
+        for row in rows:
+            output = output + str(dict(row)) + "\n"
+
+    return f"🤖 (BizDev) Here is the data from the Accounting database: “{output}”"
 
 @app.route("/bizdev", methods=["GET","POST"])
 def bizdev_chat():
@@ -269,6 +370,40 @@ def hr_chat():
         hist.append({"sender":"agent","message":reply})
         session["history_hr"] = hist
     return render_template_string(CHAT_TEMPLATE, history=hist, agent_label="HR / Sourcing AI Agent")
+
+# ─── Core class: LLM-driven SQLite interface ──────────────────────────────────
+class LLMSQLite:
+    def __init__(self, db_path: str):
+        self.conn = sqlite3.connect(db_path)
+        self.conn.row_factory = sqlite3.Row
+
+    def _get_schema(self) -> str:
+        """Extracts CREATE statements for all tables/views."""
+        cur = self.conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type IN ('table','view') AND sql NOT NULL"
+        )
+        return "\n".join(r[0] for r in cur.fetchall())
+
+    def execute_nl(self, sql: str):
+        """
+        Translates the NL command to SQL and runs it.
+        Returns:
+          - For SELECT: a list of sqlite3.Row
+          - Otherwise: number of rows affected
+        """
+#         schema = self._get_schema()
+#         sql = generate_sql_from_nl(nl_command, schema)
+        cur = self.conn.cursor()
+        cur.execute(sql)
+        if sql.strip().lower().startswith("select"):
+            return cur.fetchall()
+        elif sql.strip().lower().startswith("how"):
+            return cur.fetchall()
+        elif sql.strip().lower().startswith("which"):
+            return cur.fetchall()
+        else:
+            self.conn.commit()
+            return cur.rowcount
 
 # ─── Run Server ─────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
