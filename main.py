@@ -108,19 +108,19 @@ def run_action():
     choice = request.form.get("action")
     # initialize session history and redirect to the proper chat
     if choice == "accounting":
-        session["history_accounting"] = [{"sender":"agent","message":"Hello! I’m Deep Lithium's Accounting AI Agent. What data would you like me to add or query from our internal Accounting Database?"}]
+        session["history_accounting"] = [{"sender":"agent","message":"Hello! I’m Deep Lithium's Accounting AI Agent. What data would you like me to add to or query from our internal Accounting Database?"}]
         return redirect(url_for("accounting_chat"))
     if choice == "legal":
         session["history_legal"] = [{"sender":"agent","message":"Hello! I’m Deep Lithium's Legal AI Agent. Keeping in mind that I can search the public internet during our interactions, how may I assist you?"}]
         return redirect(url_for("legal_chat"))
     if choice == "marketing":
-        session["history_marketing"] = [{"sender":"agent","message":"Hi there! I’m Deep Lithium's Marketing AI Agent. What would you like to post on Deep Lithium's Twitter post today?"}]
+        session["history_marketing"] = [{"sender":"agent","message":"Hi there! I’m Deep Lithium's Marketing AI Agent. What would you like to post on Deep Lithium's Twitter account today?"}]
         return redirect(url_for("marketing_chat"))
     if choice == "bizdev":
-        session["history_bizdev"] = [{"sender":"agent","message":"Greetings! I’m Deep Lithium's Sales/Business Dev AI Agent. What data would you like me to add or query from our internal BizDev Database?"}]
+        session["history_bizdev"] = [{"sender":"agent","message":"Greetings! I’m Deep Lithium's Sales/Business Dev AI Agent. What data would you like me to add to or query from our internal BizDev Database?"}]
         return redirect(url_for("bizdev_chat"))
     if choice == "hr":
-        session["history_hr"] = [{"sender":"agent","message":"Hello! I’m Deep Lithium's HR/Sourcing AI Agent. Need help finding talent?"}]
+        session["history_hr"] = [{"sender":"agent","message":"Hello! I’m Deep Lithium's HR/Sourcing AI Agent. What would you like help with?"}]
         return redirect(url_for("hr_chat"))
     return redirect(url_for("index"))
 
